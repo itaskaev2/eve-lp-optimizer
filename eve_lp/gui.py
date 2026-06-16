@@ -49,7 +49,9 @@ class App:
         self.market = JitaMarket()
 
         # state
-        self.results = []            # list[OfferResult] currently displayed
+        self.all_results = []        # full ranked list from the last load
+        self.results = []            # list[OfferResult] currently displayed (filtered/sorted)
+        self.loaded_corp = ""
         self.row_map = {}            # tree iid -> OfferResult
         self.offers_cache = {}       # corp_id -> (offers, names)
         self.available_lp = None
@@ -95,6 +97,17 @@ class App:
 
         self.load_btn = ttk.Button(bar, text="Load offers", command=self.load)
         self.load_btn.grid(row=0, column=11)
+
+        # second row: instant client-side filter (no network refetch)
+        ttk.Label(bar, text="Items:").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        self.items_filter_var = tk.StringVar(value="All offers")
+        items_box = ttk.Combobox(bar, textvariable=self.items_filter_var, width=26,
+                                 state="readonly",
+                                 values=["All offers",
+                                         "Without +items (pure LP+ISK)",
+                                         "With +items only"])
+        items_box.grid(row=1, column=1, columnspan=3, sticky="w", padx=(4, 12), pady=(6, 0))
+        items_box.bind("<<ComboboxSelected>>", self._refresh_view)
 
     def _build_body(self) -> None:
         panes = ttk.PanedWindow(self.root, orient="horizontal")
@@ -212,13 +225,11 @@ class App:
             self.root.after(0, lambda: self._on_error(repr(exc)))
 
     def _on_loaded(self, corp_name: str, ranked) -> None:
-        self.results = ranked
+        self.all_results = ranked
+        self.loaded_corp = corp_name
         self.sort_attr = "isk_per_lp"
         self.sort_reverse = True
-        self._populate()
-        lp_txt = f"{self.available_lp:,} LP" if self.available_lp is not None else "LP not set"
-        self._set_status(f"{corp_name}: {len(ranked)} priced offers  ({lp_txt}, "
-                         f"strategy={self.strategy_var.get()}). Click a row for requirements.")
+        self._refresh_view()
         self.load_btn.configure(state="normal")
 
     def _on_error(self, message: str) -> None:
@@ -252,18 +263,40 @@ class App:
         if children:
             self.tree.selection_set(children[0])
             self.tree.focus(children[0])
+        else:
+            self._set_detail([("No offers match the current filter.\n", "warn")])
+
+    def _filtered(self):
+        mode = self.items_filter_var.get()
+        if mode.startswith("Without"):
+            return [r for r in self.all_results if not r.required_items]
+        if mode.startswith("With"):
+            return [r for r in self.all_results if r.required_items]
+        return list(self.all_results)
+
+    def _refresh_view(self, _event=None) -> None:
+        view = self._filtered()
+        if self.sort_attr:
+            keyfn = (str.lower) if self.sort_attr == "item_name" else (lambda v: v)
+            view.sort(key=lambda r: keyfn(getattr(r, self.sort_attr)),
+                      reverse=self.sort_reverse)
+        self.results = view
+        self._populate()
+        lp_txt = f"{self.available_lp:,} LP" if self.available_lp is not None else "LP not set"
+        self._set_status(
+            f"{self.loaded_corp}: showing {len(view)} of {len(self.all_results)} offers "
+            f"[{self.items_filter_var.get()}]  ({lp_txt}, strategy={self.strategy_var.get()}). "
+            f"Click a row for requirements.")
 
     def _sort_by(self, attr) -> None:
-        if not self.results or attr is None:
+        if not self.all_results or attr is None:
             return
         if self.sort_attr == attr:
             self.sort_reverse = not self.sort_reverse
         else:
             self.sort_attr = attr
             self.sort_reverse = attr != "item_name"  # text ascending, numbers descending
-        keyfn = (str.lower) if attr == "item_name" else (lambda v: v)
-        self.results.sort(key=lambda r: keyfn(getattr(r, attr)), reverse=self.sort_reverse)
-        self._populate()
+        self._refresh_view()
 
     def _on_select(self, _event=None) -> None:
         sel = self.tree.selection()

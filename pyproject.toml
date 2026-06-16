@@ -14,5 +14,8 @@ dependencies = ["requests>=2.31"]
 [project.scripts]
 eve-lp-optimizer = "eve_lp.cli:main"
 
+[project.gui-scripts]
+eve-lp-gui = "eve_lp.gui:main"
+
 [tool.setuptools]
 packages = ["eve_lp"]

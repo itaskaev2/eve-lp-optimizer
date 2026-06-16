@@ -63,7 +63,22 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## Usage
+## Interactive UI (recommended)
+
+A point-and-click desktop app (Tkinter, bundled with Python — no extra installs):
+
+```powershell
+python -m eve_lp.gui
+```
+
+or just double-click **`run-gui.bat`** in the project folder.
+
+Pick a corporation, enter your LP, click **Load offers**, then **click any row**
+in the list to see its full requirements on the right — LP, ISK, and every item
+you must hand in (the "+items"), each priced at Jita. Click a column header to
+re-sort (by ISK/LP, profit, max runs, …).
+
+## Command-line usage
 
 Pass each corporation as `Name:LP` (or `CorpID:LP`). For the example character:
 

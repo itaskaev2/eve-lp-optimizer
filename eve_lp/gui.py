@@ -10,6 +10,7 @@ Run with:  python -m eve_lp.gui      (or pythonw to hide the console)
 from __future__ import annotations
 
 import argparse
+import sys
 import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -50,8 +51,10 @@ class App:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         root.title("EVE LP -> ISK Optimizer")
-        root.geometry("1080x620")
-        root.minsize(820, 460)
+        self.scale = self._init_scaling()
+        s = self.scale
+        root.geometry(f"{int(1080 * s)}x{int(620 * s)}")
+        root.minsize(int(820 * s), int(460 * s))
         self._apply_theme()
 
         self.esi = EsiClient()
@@ -71,7 +74,20 @@ class App:
         self._build_body()
         self._build_status()
 
-    # -- theme -------------------------------------------------------------
+    # -- scaling / theme ---------------------------------------------------
+    def _init_scaling(self) -> float:
+        """Scale Tk to the monitor DPI and return the pixel scale vs 96 DPI."""
+        try:
+            dpi = float(self.root.winfo_fpixels("1i"))  # real DPI once DPI-aware
+        except Exception:
+            dpi = 96.0
+        try:
+            # point-based fonts (incl. ttk defaults) now render at physical size
+            self.root.tk.call("tk", "scaling", dpi / 72.0)
+        except Exception:
+            pass
+        return max(1.0, dpi / 96.0)
+
     def _apply_theme(self) -> None:
         bg, field, fg = DARK_BG, DARK_FIELD, DARK_FG
         accent, active, sel = DARK_ACCENT, DARK_ACTIVE, DARK_SEL
@@ -104,7 +120,7 @@ class App:
                   foreground=[("readonly", fg), ("disabled", "#777777")],
                   arrowcolor=[("disabled", "#777777")])
         style.configure("Treeview", background=field, fieldbackground=field,
-                        foreground=fg, rowheight=22, bordercolor=accent)
+                        foreground=fg, rowheight=int(22 * self.scale), bordercolor=accent)
         style.map("Treeview",
                   background=[("selected", sel)], foreground=[("selected", "#ffffff")])
         style.configure("Treeview.Heading", background=accent, foreground=fg, relief="flat")
@@ -172,7 +188,8 @@ class App:
         for cid, heading, width, anchor, attr in COLUMNS:
             self.tree.heading(cid, text=heading,
                               command=(lambda a=attr: self._sort_by(a)) if attr else (lambda: None))
-            self.tree.column(cid, width=width, anchor=anchor, stretch=(cid == "item"))
+            self.tree.column(cid, width=int(width * self.scale), anchor=anchor,
+                             stretch=(cid == "item"))
         vsb = ttk.Scrollbar(left, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.grid(row=0, column=0, sticky="nsew")
@@ -428,12 +445,38 @@ class App:
         self.status_var.set(text)
 
 
+def _enable_hidpi() -> None:
+    """Declare the process DPI-aware on Windows so Tk renders crisply on
+    4K/HiDPI screens instead of being bitmap-stretched (which looks blurry)."""
+    if sys.platform != "win32":
+        return
+    import ctypes
+    user32 = ctypes.windll.user32
+    try:  # Per-Monitor v2 (Windows 10 1703+): sharpest
+        user32.SetProcessDpiAwarenessContext.restype = ctypes.c_bool
+        user32.SetProcessDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+        if user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4)):
+            return
+    except Exception:
+        pass
+    try:  # Per-Monitor (Windows 8.1+)
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        return
+    except Exception:
+        pass
+    try:  # System DPI aware (Vista+)
+        user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Interactive LP -> ISK optimizer (Tkinter UI).")
     parser.add_argument("--selftest", action="store_true",
                         help="Build the window and close it immediately (smoke test).")
     args = parser.parse_args(argv)
 
+    _enable_hidpi()
     root = tk.Tk()
     App(root)
     if args.selftest:

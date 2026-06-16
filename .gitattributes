@@ -1,0 +1,11 @@
+# Normalize line endings across platforms.
+* text=auto
+
+# Shell scripts MUST be LF — CRLF breaks the shebang on macOS/Linux.
+*.sh  text eol=lf
+
+# Python is happiest as LF everywhere.
+*.py  text eol=lf
+
+# Windows batch files want CRLF.
+*.bat text eol=crlf

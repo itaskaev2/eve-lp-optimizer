@@ -300,14 +300,32 @@ class App:
         segs.append((f"\nReward value in Jita ({strat}, after fees)\n", "h2"))
         segs.append((f"  {n(r.net_value)} ISK\n", None))
 
-        segs.append(("\nResult\n", "h2"))
+        segs.append(("\nResult (per run)\n", "h2"))
         segs.append((f"  Total cost / run : {n(r.total_cost)} ISK\n", None))
         segs.append((f"  Profit / run     : {n(r.profit)} ISK\n", None))
         segs.append((f"  ISK per LP       : {n(r.isk_per_lp)}\n", None))
-        if self.available_lp is not None and r.lp_cost:
-            segs.append((f"  Max runs ({self.available_lp:,} LP): {r.max_runs:,}\n", None))
-            segs.append((f"  All-in profit    : {n(r.total_profit)} ISK\n", None))
-            segs.append((f"  All-in ISK needed: {n(r.max_runs * r.total_cost)} ISK\n", None))
+
+        if self.available_lp is not None and r.lp_cost and r.max_runs > 0:
+            runs = r.max_runs
+            leftover = self.available_lp - r.lp_cost * runs
+            segs.append((f"\nTo withdraw ALL {self.available_lp:,} LP  "
+                         f"({runs:,} runs)\n", "h1"))
+            if r.required_items:
+                segs.append(("  Total items you must buy:\n", "h2"))
+                for ri in r.required_items:
+                    flag = "" if ri.priced else "   [no Jita price]"
+                    segs.append((f"   {ri.quantity * runs:>7,} x  {ri.name}\n", None))
+                    segs.append((f"             = {n(ri.total_cost * runs)} ISK{flag}\n",
+                                 None if ri.priced else "warn"))
+                segs.append((f"  Items total : {n(r.required_cost * runs)} ISK\n", "h2"))
+            else:
+                segs.append(("  Items to buy : none (pure LP + ISK)\n", None))
+            segs.append((f"  LP spent     : {r.lp_cost * runs:,} LP  "
+                         f"(leftover {leftover:,})\n", None))
+            segs.append((f"  ISK outlay   : {n(r.total_cost * runs)} ISK\n", None))
+            segs.append((f"  Net profit   : {n(r.total_profit)} ISK\n", "h2"))
+        elif self.available_lp is not None and r.lp_cost:
+            segs.append(("\n  Not enough LP for a single run of this offer.\n", "warn"))
 
         if not r.priced:
             segs.append(("\n⚠ Some part of this offer has no Jita price; treat "

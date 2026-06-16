@@ -1,6 +1,7 @@
 @echo off
-REM Launch the EVE LP -> ISK optimizer GUI on Windows.
-REM On first run it creates a local virtual environment and installs deps.
+REM Run the EVE LP -> ISK optimizer command-line tool on Windows.
+REM Arguments are passed straight through, e.g.:
+REM    run-cli.bat --corp "Caldari Navy:169675" --top 30
 setlocal
 cd /d "%~dp0"
 
@@ -19,5 +20,4 @@ if not exist ".venv\Scripts\python.exe" (
   ".venv\Scripts\python.exe" -m pip install -r requirements.txt
 )
 
-REM pythonw + start = no extra console window
-start "" ".venv\Scripts\pythonw.exe" -m eve_lp.gui %*
+".venv\Scripts\python.exe" -m eve_lp %*

@@ -1,8 +1,8 @@
 # EVE LP → ISK Optimizer
 
-A small, read-only command-line tool that finds the **best Loyalty Point (LP) to
-ISK conversions** for your EVE Online character and values the rewards at **Jita**
-market prices.
+A small, read-only tool — **desktop UI + command line** — that finds the **best
+Loyalty Point (LP) to ISK conversions** for your EVE Online character and values
+the rewards at **Jita** market prices. Runs on Windows, macOS and Linux.
 
 It works entirely off public data:
 
@@ -33,68 +33,104 @@ you can run each with your current LP balance, and the total projected profit.
 ## Requirements
 
 * **Python 3.9+**
-* The `requests` library
+* The `requests` library — installed automatically by the helper scripts below.
+* **Tkinter** — for the GUI only. It ships with the official python.org installers
+  on Windows and macOS. Install it separately on Linux (and Homebrew Python):
 
-### Installing Python on Windows
+  | Platform | Command |
+  |----------|---------|
+  | Debian / Ubuntu | `sudo apt install python3-tk` |
+  | Fedora | `sudo dnf install python3-tkinter` |
+  | Arch | `sudo pacman -S tk` |
+  | macOS (Homebrew) | `brew install python-tk` |
 
-The `python` you may see on a fresh Windows install is just a Microsoft Store
-stub. Install the real thing:
+  The command-line tool needs no Tkinter.
+
+## Quick start
+
+Clone the repo, then run the helper script for your OS. On first run it creates an
+isolated virtual environment, installs dependencies, and launches the app.
+
+### Windows
+
+```powershell
+git clone https://github.com/itaskaev2/eve-lp-optimizer.git
+cd eve-lp-optimizer
+.\run-gui.bat
+```
+
+…or just **double-click `run-gui.bat`** in Explorer. No Python yet? Install it and
+re-run the script:
 
 ```powershell
 winget install --id Python.Python.3.12 -e
 ```
 
-Close and reopen your terminal afterwards, then verify:
+(The `python` on a clean Windows install is a Microsoft Store stub — the winget
+package above is the real interpreter.)
 
-```powershell
-python --version
-```
+### macOS / Linux
 
-## Install
-
-```powershell
+```bash
 git clone https://github.com/itaskaev2/eve-lp-optimizer.git
 cd eve-lp-optimizer
+chmod +x run-gui.sh run-cli.sh   # first time only
+./run-gui.sh
+```
 
-# (recommended) isolated environment
+The scripts use `python3` by default; override it, e.g. `PYTHON=python3.12 ./run-gui.sh`.
+
+### Helper scripts
+
+| Mode | Windows | macOS / Linux | What it does |
+|------|---------|---------------|--------------|
+| GUI | `run-gui.bat` | `run-gui.sh` | Bootstrap venv, then open the desktop app |
+| CLI | `run-cli.bat` | `run-cli.sh` | Bootstrap venv, then run the command-line tool (args are passed through) |
+
+```bash
+# CLI via helper (args forwarded to the tool):
+./run-cli.sh --corp "Caldari Navy:169675" --corp "Corporate Police Force:444399" --top 30
+```
+
+## Manual setup (any OS)
+
+If you'd rather not use the scripts:
+
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
+# Windows (PowerShell):  .\.venv\Scripts\Activate.ps1
+# macOS / Linux:         source .venv/bin/activate
 pip install -r requirements.txt
+
+python -m eve_lp.gui                              # GUI
+python -m eve_lp --corp "Caldari Navy:169675"     # CLI
 ```
 
-## Interactive UI (recommended)
-
-A point-and-click desktop app (Tkinter, bundled with Python — no extra installs):
-
-```powershell
-python -m eve_lp.gui
-```
-
-or just double-click **`run-gui.bat`** in the project folder.
+## Interactive UI
 
 Pick a corporation, enter your LP, click **Load offers**, then **click any row**
-in the list to see its full requirements on the right — LP, ISK, and every item
-you must hand in (the "+items"), each priced at Jita. Click a column header to
-re-sort (by ISK/LP, profit, max runs, …).
+to see its full requirements on the right — LP, ISK, and every item you must hand
+in (the "+items") priced at Jita, plus a total shopping list to spend your whole
+LP balance. Filter **with / without +items**, and click a column header to re-sort
+(ISK/LP, profit, max runs, …). The UI is dark-themed and HiDPI-aware (crisp on 4K).
 
 ## Command-line usage
 
-Pass each corporation as `Name:LP` (or `CorpID:LP`). For the example character:
+Pass each corporation as `Name:LP` (or `CorpID:LP`):
 
-```powershell
+```bash
 python -m eve_lp --corp "Caldari Navy:169675" --corp "Corporate Police Force:444399"
 ```
 
 Show more rows, export a full CSV, and value rewards as an instant sell to buy
 orders instead of a listed sell order:
 
-```powershell
-python -m eve_lp `
-  --corp "Caldari Navy:169675" `
-  --corp "Corporate Police Force:444399" `
-  --top 30 --strategy buy --csv results.csv
+```bash
+python -m eve_lp --corp "Caldari Navy:169675" --top 30 --strategy buy --csv results.csv
 ```
+
+> Line continuation differs by shell: PowerShell uses a backtick `` ` ``, while
+> bash/zsh use `\`. The single-line form above works everywhere.
 
 ### Options
 

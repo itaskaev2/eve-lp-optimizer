@@ -46,7 +46,7 @@ def render_table(headers, rows, aligns=None) -> str:
 
 
 def truncate(text: str, width: int) -> str:
-    return text if len(text) <= width else text[: width - 1] + "…"
+    return text if len(text) <= width else text[: width - 3] + "..."
 
 
 def parse_corp_arg(value: str):
@@ -107,6 +107,14 @@ def build_parser() -> argparse.ArgumentParser:
 # main
 # --------------------------------------------------------------------------
 def main(argv=None) -> int:
+    # Item names can contain non-ASCII characters; emit UTF-8 regardless of the
+    # host console's default code page (notably on Windows).
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
+
     args = build_parser().parse_args(argv)
 
     fees = FeeSettings(
@@ -193,7 +201,7 @@ def main(argv=None) -> int:
                 label += " [unpriced]"
             row = [
                 i,
-                truncate(label, 40),
+                truncate(label, 46),
                 f"{r.lp_cost:,}",
                 f"{r.isk_per_lp:,.0f}",
                 fmt_isk(r.profit),

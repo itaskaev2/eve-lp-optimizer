@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eve-lp-optimizer"
+version = "1.0.0"
+description = "Find the best Loyalty Point (LP) to ISK conversions in EVE Online and sell the rewards in Jita."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = ["requests>=2.31"]
+
+[project.scripts]
+eve-lp-optimizer = "eve_lp.cli:main"
+
+[tool.setuptools]
+packages = ["eve_lp"]

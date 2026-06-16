@@ -25,6 +25,14 @@ KNOWN_CORPS = {
     "Corporate Police Force": "444399",
 }
 
+# Dark theme palette.
+DARK_BG = "#1b1b1b"
+DARK_FIELD = "#262626"
+DARK_FG = "#e6e6e6"
+DARK_ACCENT = "#3a3a3a"
+DARK_ACTIVE = "#4a4a4a"
+DARK_SEL = "#2d5a88"
+
 # Treeview columns: (id, heading, width, anchor, sort attribute on OfferResult).
 COLUMNS = [
     ("rank", "#", 40, "e", None),
@@ -44,6 +52,7 @@ class App:
         root.title("EVE LP -> ISK Optimizer")
         root.geometry("1080x620")
         root.minsize(820, 460)
+        self._apply_theme()
 
         self.esi = EsiClient()
         self.market = JitaMarket()
@@ -61,6 +70,49 @@ class App:
         self._build_controls()
         self._build_body()
         self._build_status()
+
+    # -- theme -------------------------------------------------------------
+    def _apply_theme(self) -> None:
+        bg, field, fg = DARK_BG, DARK_FIELD, DARK_FG
+        accent, active, sel = DARK_ACCENT, DARK_ACTIVE, DARK_SEL
+        self.root.configure(background=bg)
+
+        # the combobox dropdown is a classic Tk listbox; darken it via options
+        self.root.option_add("*TCombobox*Listbox.background", field)
+        self.root.option_add("*TCombobox*Listbox.foreground", fg)
+        self.root.option_add("*TCombobox*Listbox.selectBackground", sel)
+        self.root.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
+
+        style = ttk.Style()
+        style.theme_use("clam")  # most colour-customisable built-in theme
+        style.configure(".", background=bg, foreground=fg, fieldbackground=field,
+                        bordercolor=accent, lightcolor=bg, darkcolor=bg,
+                        insertcolor=fg, focuscolor=sel)
+        style.configure("TFrame", background=bg)
+        style.configure("TLabel", background=bg, foreground=fg)
+        style.configure("TCheckbutton", background=bg, foreground=fg)
+        style.map("TCheckbutton", background=[("active", bg)])
+        style.configure("TButton", background=accent, foreground=fg, bordercolor=accent)
+        style.map("TButton",
+                  background=[("active", active), ("disabled", "#2a2a2a")],
+                  foreground=[("disabled", "#777777")])
+        style.configure("TEntry", fieldbackground=field, foreground=fg, insertcolor=fg)
+        style.configure("TCombobox", fieldbackground=field, foreground=fg,
+                        background=accent, arrowcolor=fg)
+        style.map("TCombobox",
+                  fieldbackground=[("readonly", field), ("disabled", bg)],
+                  foreground=[("readonly", fg), ("disabled", "#777777")],
+                  arrowcolor=[("disabled", "#777777")])
+        style.configure("Treeview", background=field, fieldbackground=field,
+                        foreground=fg, rowheight=22, bordercolor=accent)
+        style.map("Treeview",
+                  background=[("selected", sel)], foreground=[("selected", "#ffffff")])
+        style.configure("Treeview.Heading", background=accent, foreground=fg, relief="flat")
+        style.map("Treeview.Heading", background=[("active", active)])
+        style.configure("TScrollbar", background=accent, troughcolor=bg,
+                        arrowcolor=fg, bordercolor=bg)
+        style.map("TScrollbar", background=[("active", active)])
+        style.configure("TPanedwindow", background=bg)
 
     # -- UI construction ---------------------------------------------------
     def _build_controls(self) -> None:

@@ -177,6 +177,13 @@ class App:
         items_box.grid(row=1, column=1, columnspan=3, sticky="w", padx=(4, 12), pady=(6, 0))
         items_box.bind("<<ComboboxSelected>>", self._refresh_view)
 
+        # live name search: filters the list as you type (e.g. "Rocket")
+        ttk.Label(bar, text="Search:").grid(row=1, column=4, sticky="w", pady=(6, 0))
+        self.search_var = tk.StringVar()
+        search_entry = ttk.Entry(bar, textvariable=self.search_var, width=24)
+        search_entry.grid(row=1, column=5, columnspan=5, sticky="w", padx=(4, 12), pady=(6, 0))
+        self.search_var.trace_add("write", lambda *_: self._refresh_view())
+
     def _build_body(self) -> None:
         panes = ttk.PanedWindow(self.root, orient="horizontal")
         panes.pack(side="top", fill="both", expand=True, padx=8, pady=4)
@@ -344,12 +351,16 @@ class App:
             self._set_detail([("No offers match the current filter.\n", "warn")])
 
     def _filtered(self):
+        results = self.all_results
         mode = self.items_filter_var.get()
         if mode.startswith("Without"):
-            return [r for r in self.all_results if not r.required_items]
-        if mode.startswith("With"):
-            return [r for r in self.all_results if r.required_items]
-        return list(self.all_results)
+            results = [r for r in results if not r.required_items]
+        elif mode.startswith("With"):
+            results = [r for r in results if r.required_items]
+        term = self.search_var.get().strip().lower()
+        if term:
+            results = [r for r in results if term in r.item_name.lower()]
+        return list(results)
 
     def _refresh_view(self, _event=None) -> None:
         view = self._filtered()
@@ -360,10 +371,12 @@ class App:
         self.results = view
         self._populate()
         lp_txt = f"{self.available_lp:,} LP" if self.available_lp is not None else "LP not set"
+        term = self.search_var.get().strip()
+        search_txt = f', search="{term}"' if term else ""
         self._set_status(
             f"{self.loaded_corp}: showing {len(view)} of {len(self.all_results)} offers "
-            f"[{self.items_filter_var.get()}]  ({lp_txt}, strategy={self.strategy_var.get()}). "
-            f"Click a row for requirements.")
+            f"[{self.items_filter_var.get()}{search_txt}]  "
+            f"({lp_txt}, strategy={self.strategy_var.get()}). Click a row for requirements.")
 
     def _sort_by(self, attr) -> None:
         if not self.all_results or attr is None:

@@ -108,11 +108,25 @@ python -m eve_lp --corp "Caldari Navy:169675"     # CLI
 
 ## Interactive UI
 
-Pick a corporation, enter your LP, click **Load offers**, then **click any row**
-to see its full requirements on the right — LP, ISK, and every item you must hand
-in (the "+items") priced at Jita, plus a total shopping list to spend your whole
-LP balance. Filter **with / without +items**, and click a column header to re-sort
-(ISK/LP, profit, max runs, …). The UI is dark-themed and HiDPI-aware (crisp on 4K).
+Pick a corporation, enter your LP, and click **Load offers**. Then **click any row**
+to see its full requirements on the right.
+
+Features:
+
+- **Universal corp picker** — the dropdown is populated with *all* NPC corporations
+  (loaded from ESI in the background on startup), defaulting to **Corporate Police
+  Force**. You can also just type a corp name.
+- **Requirements detail** — for the selected offer: LP, ISK, and every item you must
+  hand in (the "+items") priced at Jita, plus a total **shopping list** to spend your
+  whole LP balance (each item × your max runs).
+- **Click-to-copy** — click any item name (reward or +item) to copy it to the
+  clipboard, ready to paste into the in-game market search. Double-click a list row
+  to copy its name too.
+- **Live search** — a Search box filters the list by name as you type (e.g. `Rocket`),
+  with an **✕** button to clear it.
+- **Filter / sort** — show **all / without +items / with +items only**, and click any
+  column header to re-sort (ISK/LP, profit, max runs, …).
+- **Dark-themed and HiDPI-aware** — crisp on 4K displays.
 
 ## Command-line usage
 

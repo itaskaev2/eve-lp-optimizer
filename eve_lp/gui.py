@@ -178,7 +178,7 @@ class App:
         items_box.bind("<<ComboboxSelected>>", self._refresh_view)
 
     def _build_body(self) -> None:
-        self.panes = panes = ttk.PanedWindow(self.root, orient="horizontal")
+        panes = ttk.PanedWindow(self.root, orient="horizontal")
         panes.pack(side="top", fill="both", expand=True, padx=8, pady=4)
 
         # left: offer list
@@ -202,22 +202,15 @@ class App:
 
         # right: detail panel
         right = ttk.Frame(panes)
-        ttk.Label(right, text="Requirements", padding=(2, 2)).grid(
-            row=0, column=0, columnspan=2, sticky="w")
-        # wrap="none": never break a line; the panel width is auto-fitted to the
-        # widest line in _autosize_detail so item names stay on one line.
-        self.detail = tk.Text(right, wrap="none", width=46, height=10,
+        ttk.Label(right, text="Requirements", padding=(2, 2)).pack(anchor="w")
+        self.detail = tk.Text(right, wrap="word", width=46, height=10,
                               state="disabled", font=("Consolas", 10),
                               background="#1b1b1b", foreground="#e6e6e6",
                               padx=8, pady=8, relief="flat")
         dsb = ttk.Scrollbar(right, orient="vertical", command=self.detail.yview)
-        hsb = ttk.Scrollbar(right, orient="horizontal", command=self.detail.xview)
-        self.detail.configure(yscrollcommand=dsb.set, xscrollcommand=hsb.set)
-        self.detail.grid(row=1, column=0, sticky="nsew")
-        dsb.grid(row=1, column=1, sticky="ns")
-        hsb.grid(row=2, column=0, sticky="ew")  # safety net for very long lines
-        right.rowconfigure(1, weight=1)
-        right.columnconfigure(0, weight=1)
+        self.detail.configure(yscrollcommand=dsb.set)
+        self.detail.pack(side="left", fill="both", expand=True)
+        dsb.pack(side="right", fill="y")
         self.detail.tag_configure("h1", foreground="#7fd1ff",
                                   font=("Consolas", 11, "bold"))
         self.detail.tag_configure("h2", foreground="#9be29b",
@@ -486,30 +479,6 @@ class App:
                     lambda _e, val=copy_value: self._copy_text(val))
             self.detail.insert("end", text, tuple(tags))
         self.detail.configure(state="disabled")
-        full = "".join(seg[0] for seg in segments)
-        longest = max((len(line) for line in full.splitlines()), default=0)
-        self._autosize_detail(longest)
-
-    def _autosize_detail(self, longest_line: int) -> None:
-        """Size the right panel to the widest line so nothing wraps. Moves the
-        pane divider to fit the content, widening the window only if needed."""
-        s = self.scale
-        self.detail.configure(width=max(28, min(longest_line + 2, 110)))
-        self.root.update_idletasks()
-        try:
-            total = self.panes.winfo_width()
-            if total < 50:                       # window not laid out yet
-                return
-            right_px = self.detail.winfo_reqwidth() + int(34 * s)  # +vscroll/pad
-            left_min = int(340 * s)
-            if total - right_px < left_min:      # too narrow -> widen the window
-                self.root.geometry(
-                    f"{left_min + right_px + int(16 * s)}x{self.root.winfo_height()}")
-                self.root.update_idletasks()
-                total = self.panes.winfo_width()
-            self.panes.sashpos(0, max(left_min, total - right_px))
-        except Exception:
-            pass
 
     def _copy_text(self, value: str) -> None:
         self.root.clipboard_clear()

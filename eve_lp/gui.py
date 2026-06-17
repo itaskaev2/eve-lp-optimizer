@@ -41,11 +41,18 @@ COLUMNS = [
     ("item", "Item", 320, "w", "item_name"),
     ("lp", "LP cost", 90, "e", "lp_cost"),
     ("isklp", "ISK/LP", 80, "e", "isk_per_lp"),
+    ("depth", "Mkt units", 80, "e", None),  # order-book depth = liquidity tell
     ("profit", "Profit/run", 90, "e", "profit"),
     ("cost", "Cost/run", 90, "e", "total_cost"),
     ("runs", "Max runs", 80, "e", "max_runs"),
     ("total", "Total profit", 100, "e", "total_profit"),
 ]
+
+# A reward market is flagged "thin" (headline ISK/LP probably a mirage) when the
+# valuation side has at most this many orders, or when spending all your LP would
+# produce more than THIN_OVERSUPPLY_RATIO x the units currently in the order book.
+THIN_MARKET_ORDERS = 3
+THIN_OVERSUPPLY_RATIO = 5
 
 
 class App:
@@ -219,6 +226,7 @@ class App:
         vsb.grid(row=0, column=1, sticky="ns")
         left.rowconfigure(0, weight=1)
         left.columnconfigure(0, weight=1)
+        self.tree.tag_configure("thin", foreground="#ffb86b")  # thin-market rows
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
         self.tree.bind("<Double-1>", self._on_tree_double_click)
         panes.add(left, weight=3)
@@ -361,25 +369,41 @@ class App:
         messagebox.showerror("Load failed", message)
 
     # -- table -------------------------------------------------------------
+    def _is_thin(self, r) -> bool:
+        """Thin = the headline price is unreliable: very few orders define it, or
+        you'd produce more units than the whole current order book holds."""
+        if not r.priced:
+            return False
+        strategy = self.strategy_var.get()
+        if r.depth_orders(strategy) <= THIN_MARKET_ORDERS:
+            return True
+        units_you_make = r.max_runs * r.quantity
+        return bool(units_you_make
+                    and r.depth_volume(strategy) * THIN_OVERSUPPLY_RATIO < units_you_make)
+
     def _populate(self) -> None:
         self.tree.delete(*self.tree.get_children())
         self.row_map.clear()
         show_runs = self.available_lp is not None
+        strategy = self.strategy_var.get()
         for idx, r in enumerate(self.results, start=1):
             label = r.item_name if r.quantity == 1 else f"{r.quantity}x {r.item_name}"
             if r.required_items:
                 label += "  (+items)"
             if not r.priced:
                 label += "  [unpriced]"
+            depth_vol = r.depth_volume(strategy)
+            thin = self._is_thin(r)
             values = (
                 idx, label, f"{r.lp_cost:,}",
                 f"{r.isk_per_lp:,.0f}" if r.priced else "-",
+                fmt_isk(depth_vol) if r.priced else "-",
                 fmt_isk(r.profit) if r.priced else "-",
                 fmt_isk(r.total_cost),
                 f"{r.max_runs:,}" if show_runs else "",
                 fmt_isk(r.total_profit) if show_runs else "",
             )
-            iid = self.tree.insert("", "end", values=values)
+            iid = self.tree.insert("", "end", values=values, tags=("thin",) if thin else ())
             self.row_map[iid] = r
         # auto-select the first (best) row
         children = self.tree.get_children()
@@ -472,6 +496,17 @@ class App:
         strat = "list sell order" if self.strategy_var.get() == "sell" else "instant sell to buy orders"
         segs.append((f"\nReward value in {self.hub_name} ({strat}, after fees)\n", "h2"))
         segs.append((f"  {n(r.net_value)} ISK\n", None))
+
+        # market depth: the at-a-glance liquidity / mirage check
+        segs.append((f"\nMarket depth at {self.hub_name} (current orders)\n", "h2"))
+        segs.append((f"  Sell: {r.out_sell_orders:,} orders, {n(r.out_sell_volume)} units\n", None))
+        segs.append((f"  Buy : {r.out_buy_orders:,} orders, {n(r.out_buy_volume)} units\n", None))
+        if self.available_lp is not None and r.max_runs > 0:
+            segs.append((f"  You'd make {r.max_runs * r.quantity:,} units across "
+                         f"{r.max_runs:,} runs.\n", None))
+        if self._is_thin(r):
+            segs.append(("  ⚠ Thin market — the headline ISK/LP is likely a mirage you "
+                         "can't actually sell into here. Cross-check Jita.\n", "warn"))
 
         segs.append(("\nResult (per run)\n", "h2"))
         segs.append((f"  Total cost / run : {n(r.total_cost)} ISK\n", None))

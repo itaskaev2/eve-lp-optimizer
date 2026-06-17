@@ -197,8 +197,8 @@ def main(argv=None) -> int:
             continue
 
         show_runs = corp["lp"] is not None
-        headers = ["#", "Item", "LP cost", "ISK/LP", "Profit/run", "Cost/run"]
-        aligns = ["r", "l", "r", "r", "r", "r"]
+        headers = ["#", "Item", "LP cost", "ISK/LP", "Mkt units", "Profit/run", "Cost/run"]
+        aligns = ["r", "l", "r", "r", "r", "r", "r"]
         if show_runs:
             headers += ["Max runs", "Total profit"]
             aligns += ["r", "r"]
@@ -215,6 +215,7 @@ def main(argv=None) -> int:
                 truncate(label, 46),
                 f"{r.lp_cost:,}",
                 f"{r.isk_per_lp:,.0f}",
+                fmt_isk(r.depth_volume(args.strategy)),
                 fmt_isk(r.profit),
                 fmt_isk(r.total_cost),
             ]
@@ -242,9 +243,10 @@ def main(argv=None) -> int:
         print(f"Wrote {len(all_rows_for_csv)} rows to {args.csv}")
 
     print(
-        "Note: prices are estimates from Fuzzwork Jita aggregates and move "
-        "constantly. Liquidity (daily volume) matters - a huge ISK/LP on a "
-        "thinly traded item may be hard to actually sell."
+        "Note: prices are Fuzzwork order-book aggregates and move constantly. "
+        "'Mkt units' is the current order-book depth on the valuation side - a "
+        "tiny number means the headline ISK/LP is likely a thin-market mirage "
+        "you can't actually sell into. Sanity-check before committing LP."
     )
     return 0
 
@@ -256,6 +258,7 @@ def _write_csv(path: str, rows) -> None:
             "corporation", "offer_id", "item", "quantity", "lp_cost", "isk_cost",
             "required_cost", "total_cost", "net_value", "profit", "isk_per_lp",
             "priced", "max_runs", "total_profit",
+            "sell_orders", "sell_volume", "buy_orders", "buy_volume",
         ])
         for corp_name, r in rows:
             writer.writerow([
@@ -263,6 +266,8 @@ def _write_csv(path: str, rows) -> None:
                 f"{r.isk_cost:.2f}", f"{r.required_cost:.2f}", f"{r.total_cost:.2f}",
                 f"{r.net_value:.2f}", f"{r.profit:.2f}", f"{r.isk_per_lp:.2f}",
                 r.priced, r.max_runs, f"{r.total_profit:.2f}",
+                r.out_sell_orders, f"{r.out_sell_volume:.0f}",
+                r.out_buy_orders, f"{r.out_buy_volume:.0f}",
             ])
 
 

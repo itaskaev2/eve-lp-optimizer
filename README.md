@@ -126,6 +126,10 @@ Features:
   with an **✕** button to clear it.
 - **Trade hub** — value rewards at any of the major hubs (**Jita / Amarr / Dodixie /
   Rens / Hek**); changing the hub re-prices the list.
+- **Liquidity check** — a **Mkt units** column shows the reward's current order-book
+  depth, and rows are flagged orange when the market is too thin to trust the
+  headline ISK/LP (very few orders, or you'd produce far more than the book holds).
+  The detail pane shows full buy/sell depth. Great for spotting secondary-hub mirages.
 - **Filter / sort** — show **all / without +items / with +items only**, and click any
   column header to re-sort (ISK/LP, profit, max runs, …).
 - **Dark-themed and HiDPI-aware** — crisp on 4K displays.

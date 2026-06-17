@@ -61,6 +61,19 @@ class OfferResult:
     priced: bool = False
     max_runs: int = 0          # how many times you can run it with available LP
     total_profit: float = 0.0  # profit * max_runs
+    # reward item order-book depth at the chosen hub (liquidity sanity check)
+    out_sell_orders: int = 0
+    out_sell_volume: float = 0.0
+    out_buy_orders: int = 0
+    out_buy_volume: float = 0.0
+
+    def depth_orders(self, strategy: str) -> int:
+        """Order count on the side the reward is valued at."""
+        return self.out_sell_orders if strategy == "sell" else self.out_buy_orders
+
+    def depth_volume(self, strategy: str) -> float:
+        """Units listed on the side the reward is valued at."""
+        return self.out_sell_volume if strategy == "sell" else self.out_buy_volume
 
 
 def _price(prices: dict, type_id: int, side: str, fieldname: str):
@@ -116,6 +129,14 @@ def evaluate_offer(offer: dict, prices: dict, names: dict, fees: FeeSettings,
     unit_price = _output_unit_price(prices, type_id, fees.output_strategy, fees.price_field)
     output_priced = unit_price is not None
     result.unit_price = unit_price or 0.0
+
+    # capture reward-item market depth (order-book units + order counts)
+    entry = prices.get(type_id) or {}
+    sell, buy = entry.get("sell", {}) or {}, entry.get("buy", {}) or {}
+    result.out_sell_orders = int(sell.get("orderCount", 0) or 0)
+    result.out_sell_volume = float(sell.get("volume", 0.0) or 0.0)
+    result.out_buy_orders = int(buy.get("orderCount", 0) or 0)
+    result.out_buy_volume = float(buy.get("volume", 0.0) or 0.0)
 
     required_priced = True
     for raw in offer.get("required_items", []) or []:

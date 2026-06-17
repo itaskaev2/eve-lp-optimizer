@@ -178,10 +178,14 @@ class App:
         items_box.bind("<<ComboboxSelected>>", self._refresh_view)
 
         # live name search: filters the list as you type (e.g. "Rocket")
-        ttk.Label(bar, text="Search:").grid(row=1, column=4, sticky="w", pady=(6, 0))
+        search_grp = ttk.Frame(bar)
+        search_grp.grid(row=1, column=4, columnspan=8, sticky="w", padx=(4, 0), pady=(6, 0))
+        ttk.Label(search_grp, text="Search:").pack(side="left")
         self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(bar, textvariable=self.search_var, width=24)
-        search_entry.grid(row=1, column=5, columnspan=5, sticky="w", padx=(4, 12), pady=(6, 0))
+        search_entry = ttk.Entry(search_grp, textvariable=self.search_var, width=24)
+        search_entry.pack(side="left", padx=(4, 2))
+        ttk.Button(search_grp, text="✕", width=2,
+                   command=lambda: self.search_var.set("")).pack(side="left")
         self.search_var.trace_add("write", lambda *_: self._refresh_view())
 
     def _build_body(self) -> None:

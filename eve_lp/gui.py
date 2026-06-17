@@ -17,7 +17,7 @@ from tkinter import ttk, messagebox
 
 from .cli import fmt_isk
 from .esi import EsiClient, EsiError
-from .market import JitaMarket, MarketError
+from .market import JitaMarket, TRADE_HUBS, MarketError
 from .optimizer import FeeSettings, evaluate_offers, rank
 
 # Pre-fill convenience: known corporations and the example character's balances.
@@ -68,6 +68,7 @@ class App:
         self.row_map = {}            # tree iid -> OfferResult
         self.offers_cache = {}       # corp_id -> (offers, names)
         self.available_lp = None
+        self.hub_name = "Jita"
         self.sort_attr = None
         self.sort_reverse = True
 
@@ -168,25 +169,34 @@ class App:
         self.load_btn = ttk.Button(bar, text="Load offers", command=self.load)
         self.load_btn.grid(row=0, column=11)
 
-        # second row: instant client-side filter (no network refetch)
-        ttk.Label(bar, text="Items:").grid(row=1, column=0, sticky="w", pady=(6, 0))
+        # second row (one frame): market hub + item filter + live search
+        filt = ttk.Frame(bar)
+        filt.grid(row=1, column=0, columnspan=12, sticky="w", pady=(6, 0))
+
+        ttk.Label(filt, text="Hub:").pack(side="left")
+        self.hub_var = tk.StringVar(value="Jita")
+        hub_box = ttk.Combobox(filt, textvariable=self.hub_var, width=9, state="readonly",
+                               values=list(TRADE_HUBS))
+        hub_box.pack(side="left", padx=(4, 12))
+        # changing hub re-prices the current list (only if something is loaded)
+        hub_box.bind("<<ComboboxSelected>>",
+                     lambda _e: self.load() if self.all_results else None)
+
+        ttk.Label(filt, text="Items:").pack(side="left")
         self.items_filter_var = tk.StringVar(value="All offers")
-        items_box = ttk.Combobox(bar, textvariable=self.items_filter_var, width=26,
+        items_box = ttk.Combobox(filt, textvariable=self.items_filter_var, width=26,
                                  state="readonly",
                                  values=["All offers",
                                          "Without +items (pure LP+ISK)",
                                          "With +items only"])
-        items_box.grid(row=1, column=1, columnspan=3, sticky="w", padx=(4, 12), pady=(6, 0))
+        items_box.pack(side="left", padx=(4, 12))
         items_box.bind("<<ComboboxSelected>>", self._refresh_view)
 
-        # live name search: filters the list as you type (e.g. "Rocket")
-        search_grp = ttk.Frame(bar)
-        search_grp.grid(row=1, column=4, columnspan=8, sticky="w", padx=(4, 0), pady=(6, 0))
-        ttk.Label(search_grp, text="Search:").pack(side="left")
+        ttk.Label(filt, text="Search:").pack(side="left")
         self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_grp, textvariable=self.search_var, width=24)
+        search_entry = ttk.Entry(filt, textvariable=self.search_var, width=24)
         search_entry.pack(side="left", padx=(4, 2))
-        ttk.Button(search_grp, text="✕", width=2,
+        ttk.Button(filt, text="✕", width=2,
                    command=lambda: self.search_var.set("")).pack(side="left")
         self.search_var.trace_add("write", lambda *_: self._refresh_view())
 
@@ -302,8 +312,10 @@ class App:
             return
         self.available_lp = self._parse_lp()
         fees = self._fees()
+        self.hub_name = self.hub_var.get()
+        self.market.station_id = TRADE_HUBS.get(self.hub_name, TRADE_HUBS["Jita"])
         self.load_btn.configure(state="disabled")
-        self._set_status(f"Loading offers for {corp} …")
+        self._set_status(f"Loading offers for {corp} @ {self.hub_name} …")
         threading.Thread(target=self._load_worker, args=(corp, fees), daemon=True).start()
 
     def _load_worker(self, corp: str, fees: FeeSettings) -> None:
@@ -403,7 +415,8 @@ class App:
         self._set_status(
             f"{self.loaded_corp}: showing {len(view)} of {len(self.all_results)} offers "
             f"[{self.items_filter_var.get()}{search_txt}]  "
-            f"({lp_txt}, strategy={self.strategy_var.get()}). Click a row for requirements.")
+            f"({lp_txt}, {self.hub_name}, strategy={self.strategy_var.get()}). "
+            f"Click a row for requirements.")
 
     def _sort_by(self, attr) -> None:
         if not self.all_results or attr is None:
@@ -457,7 +470,7 @@ class App:
             segs.append(("\nItems to hand in : none (pure LP + ISK)\n", "h2"))
 
         strat = "list sell order" if self.strategy_var.get() == "sell" else "instant sell to buy orders"
-        segs.append((f"\nReward value in Jita ({strat}, after fees)\n", "h2"))
+        segs.append((f"\nReward value in {self.hub_name} ({strat}, after fees)\n", "h2"))
         segs.append((f"  {n(r.net_value)} ISK\n", None))
 
         segs.append(("\nResult (per run)\n", "h2"))

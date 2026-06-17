@@ -8,7 +8,7 @@ import os
 import sys
 
 from .esi import EsiClient, EsiError, DEFAULT_USER_AGENT
-from .market import JitaMarket, JITA_STATION_ID, MarketError
+from .market import JitaMarket, JITA_STATION_ID, TRADE_HUBS, MarketError
 from .optimizer import FeeSettings, evaluate_offers, rank
 
 
@@ -89,8 +89,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Only show offers at or above this ISK/LP.")
     parser.add_argument("--include-unpriced", action="store_true",
                         help="Also include offers with no/illiquid Jita market data.")
-    parser.add_argument("--station", type=int, default=JITA_STATION_ID,
-                        help="Market station id (default Jita 4-4).")
+    parser.add_argument("--hub", choices=[h.lower() for h in TRADE_HUBS], default="jita",
+                        help="Trade hub to value rewards at.")
+    parser.add_argument("--station", type=int, default=None,
+                        help="Raw market station id (overrides --hub).")
     parser.add_argument("--csv", metavar="PATH", default=None,
                         help="Also write the full ranked results to a CSV file.")
     parser.add_argument("--datasource", default="tranquility",
@@ -124,8 +126,17 @@ def main(argv=None) -> int:
         price_field=args.price_field,
     )
 
+    # Resolve which market to value at: explicit --station wins, else the --hub.
+    hub_by_lower = {h.lower(): (h, sid) for h, sid in TRADE_HUBS.items()}
+    if args.station is not None:
+        station = args.station
+        hub_label = f"station {station}"
+    else:
+        hub_name, station = hub_by_lower[args.hub]
+        hub_label = hub_name
+
     esi = EsiClient(user_agent=args.user_agent, datasource=args.datasource)
-    market = JitaMarket(station_id=args.station, user_agent=args.user_agent)
+    market = JitaMarket(station_id=station, user_agent=args.user_agent)
 
     # 1. Resolve corps and fetch their offers.
     corps = []  # list of dicts: {id, name, lp, offers}
@@ -147,7 +158,7 @@ def main(argv=None) -> int:
         print(f"Loaded {len(offers)} offers for {corp_name} (id {corp_id}) - {lp_text}")
 
     # 2. One batch of name + price lookups for everything.
-    print(f"Resolving {len(type_ids)} item names and Jita prices...")
+    print(f"Resolving {len(type_ids)} item names and {hub_label} prices...")
     try:
         names = esi.names_for_ids(type_ids)
     except EsiError as exc:
@@ -161,7 +172,7 @@ def main(argv=None) -> int:
 
     strat_label = "list sell order" if args.strategy == "sell" else "instant sell to buy orders"
     print(
-        f"\nValuation: {strat_label} @ station {args.station}, "
+        f"\nValuation: {strat_label} @ {hub_label}, "
         f"price={args.price_field}, sales tax {args.sales_tax}%, "
         f"broker {args.broker_fee}%\n"
     )

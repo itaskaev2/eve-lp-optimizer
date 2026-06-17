@@ -20,6 +20,15 @@ FUZZWORK_AGGREGATES = "https://market.fuzzwork.co.uk/aggregates/"
 # Jita IV - Moon 4 - Caldari Navy Assembly Plant (the main trade hub).
 JITA_STATION_ID = 60003760
 
+# The five major NPC trade hubs (display name -> station id; region in comment).
+TRADE_HUBS = {
+    "Jita":    60003760,  # The Forge   - Jita IV-4 Caldari Navy Assembly Plant
+    "Amarr":   60008494,  # Domain      - Amarr VIII (Oris) Emperor Family Academy
+    "Dodixie": 60011866,  # Sinq Laison - Dodixie IX-20 Federation Navy Assembly Plant
+    "Rens":    60004588,  # Heimatar    - Rens VI-8 Brutor Tribe Treasury
+    "Hek":     60005686,  # Metropolis  - Hek VIII-12 Boundless Creation Factory
+}
+
 _PRICE_FIELDS = (
     "weightedAverage", "max", "min", "median", "percentile", "volume", "orderCount",
 )

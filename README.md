@@ -124,6 +124,8 @@ Features:
   to copy its name too.
 - **Live search** — a Search box filters the list by name as you type (e.g. `Rocket`),
   with an **✕** button to clear it.
+- **Trade hub** — value rewards at any of the major hubs (**Jita / Amarr / Dodixie /
+  Rens / Hek**); changing the hub re-prices the list.
 - **Filter / sort** — show **all / without +items / with +items only**, and click any
   column header to re-sort (ISK/LP, profit, max runs, …).
 - **Dark-themed and HiDPI-aware** — crisp on 4K displays.
@@ -157,8 +159,9 @@ python -m eve_lp --corp "Caldari Navy:169675" --top 30 --strategy buy --csv resu
 | `--sales-tax` | `3.37` | Sales tax %. 7.5% base, −11%/level Accounting → ~3.37% at V. |
 | `--broker-fee` | `1.5` | Broker fee % on sell orders. 3.0% base, −0.3%/level Broker Relations → ~1.5% at V. |
 | `--min-isk-per-lp` | — | Hide offers below this ISK/LP. |
-| `--include-unpriced` | off | Also list offers with no/illiquid Jita data. |
-| `--station` | `60003760` | Market station id (default Jita 4-4). |
+| `--include-unpriced` | off | Also list offers with no/illiquid market data. |
+| `--hub` | `jita` | Trade hub to value at: `jita`, `amarr`, `dodixie`, `rens`, `hek`. |
+| `--station` | — | Raw station id (overrides `--hub`). |
 | `--csv PATH` | — | Write full ranked results to CSV. |
 | `--user-agent` | env `EVE_LP_USER_AGENT` | CCP asks that this identify you — set it to include your email. |
 

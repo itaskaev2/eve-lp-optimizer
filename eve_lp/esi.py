@@ -98,6 +98,11 @@ class EsiClient:
         """Return all LP store offers for an NPC corporation."""
         return self._get_paged(f"/loyalty/stores/{int(corporation_id)}/offers/")
 
+    def npc_corporation_ids(self) -> list[int]:
+        """All NPC corporation ids (public) — the source for the corp picker."""
+        resp = self._request("GET", "/corporations/npccorps/")
+        return [int(x) for x in resp.json()]
+
     def resolve_names(self, names: Iterable[str]) -> dict:
         """POST /universe/ids/ — resolve names to ids across categories."""
         resp = self._request("POST", "/universe/ids/", json=list(names))

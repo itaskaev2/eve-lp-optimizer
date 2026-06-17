@@ -25,6 +25,7 @@ KNOWN_CORPS = {
     "Caldari Navy": "169675",
     "Corporate Police Force": "444399",
 }
+DEFAULT_CORP = "Corporate Police Force"
 
 # Dark theme palette.
 DARK_BG = "#1b1b1b"
@@ -73,6 +74,7 @@ class App:
         self._build_controls()
         self._build_body()
         self._build_status()
+        self._load_corp_list_async()
 
     # -- scaling / theme ---------------------------------------------------
     def _init_scaling(self) -> float:
@@ -136,14 +138,14 @@ class App:
         bar.pack(side="top", fill="x")
 
         ttk.Label(bar, text="Corporation:").grid(row=0, column=0, sticky="w")
-        self.corp_var = tk.StringVar(value="Caldari Navy")
-        self.corp_box = ttk.Combobox(bar, textvariable=self.corp_var, width=24,
-                                     values=list(KNOWN_CORPS))
+        self.corp_var = tk.StringVar(value=DEFAULT_CORP)
+        self.corp_box = ttk.Combobox(bar, textvariable=self.corp_var, width=28,
+                                     values=sorted(KNOWN_CORPS))
         self.corp_box.grid(row=0, column=1, padx=(4, 12))
         self.corp_box.bind("<<ComboboxSelected>>", self._on_corp_selected)
 
         ttk.Label(bar, text="Your LP:").grid(row=0, column=2, sticky="w")
-        self.lp_var = tk.StringVar(value=KNOWN_CORPS["Caldari Navy"])
+        self.lp_var = tk.StringVar(value=KNOWN_CORPS[DEFAULT_CORP])
         ttk.Entry(bar, textvariable=self.lp_var, width=12).grid(row=0, column=3, padx=(4, 12))
 
         ttk.Label(bar, text="Strategy:").grid(row=0, column=4, sticky="w")
@@ -243,6 +245,27 @@ class App:
                                              "‘Load offers’.")
         ttk.Label(self.root, textvariable=self.status_var, relief="sunken",
                   anchor="w", padding=(6, 3)).pack(side="bottom", fill="x")
+
+    # -- corporation list (loaded in the background) -----------------------
+    def _load_corp_list_async(self) -> None:
+        """Fetch every NPC corporation name off-thread and fill the picker."""
+        def worker():
+            try:
+                ids = self.esi.npc_corporation_ids()
+                names = self.esi.names_for_ids(ids)
+                corp_names = sorted(set(names.values()), key=str.lower)
+                self.root.after(0, lambda: self._set_corp_list(corp_names))
+            except Exception as exc:  # keep the two known corps as fallback
+                self.root.after(0, lambda: self._set_status(
+                    f"Using built-in corp list (couldn't fetch full list: {exc})"))
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _set_corp_list(self, corp_names) -> None:
+        current = self.corp_var.get()
+        self.corp_box.configure(values=corp_names)
+        self.corp_var.set(current)  # keep the current selection
+        self._set_status(f"{len(corp_names)} corporations available. "
+                         f"Pick one (default {DEFAULT_CORP}) and click ‘Load offers’.")
 
     # -- events ------------------------------------------------------------
     def _on_corp_selected(self, _event=None) -> None:

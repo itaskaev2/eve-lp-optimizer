@@ -197,6 +197,7 @@ class App:
         left.rowconfigure(0, weight=1)
         left.columnconfigure(0, weight=1)
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
+        self.tree.bind("<Double-1>", self._on_tree_double_click)
         panes.add(left, weight=3)
 
         # right: detail panel
@@ -215,8 +216,15 @@ class App:
         self.detail.tag_configure("h2", foreground="#9be29b",
                                   font=("Consolas", 10, "bold"))
         self.detail.tag_configure("warn", foreground="#ffb86b")
+        # clickable item names -> copy to clipboard
+        self.detail.tag_configure("copyable", foreground="#7fd1ff", underline=True)
+        self.detail.tag_bind("copyable", "<Enter>",
+                             lambda _e: self.detail.configure(cursor="hand2"))
+        self.detail.tag_bind("copyable", "<Leave>",
+                             lambda _e: self.detail.configure(cursor=""))
         self._set_detail([("Click an offer on the left to see what it takes to "
-                           "make it.\n", None)])
+                           "make it.\n", None),
+                          ("Tip: click any underlined item name to copy it.\n", "h2")])
         panes.add(right, weight=2)
 
     def _build_status(self) -> None:
@@ -375,12 +383,21 @@ class App:
         if r is not None:
             self._render_detail(r)
 
+    def _on_tree_double_click(self, _event=None) -> None:
+        sel = self.tree.selection()
+        if sel:
+            r = self.row_map.get(sel[0])
+            if r is not None:
+                self._copy_text(r.item_name)
+
     # -- detail panel ------------------------------------------------------
     def _render_detail(self, r) -> None:
         n = lambda v: f"{v:,.0f}"
         segs = []
-        title = r.item_name if r.quantity == 1 else f"{r.quantity}x {r.item_name}"
-        segs.append((title + "\n", "h1"))
+        if r.quantity != 1:
+            segs.append((f"{r.quantity}x ", "h1"))
+        segs.append((r.item_name, "h1", r.item_name))  # clickable -> copy
+        segs.append(("\n", "h1"))
         segs.append(("\nYou pay\n", "h2"))
         segs.append((f"  Loyalty Points : {r.lp_cost:,} LP\n", None))
         segs.append((f"  ISK            : {n(r.isk_cost)} ISK\n", None))
@@ -389,8 +406,9 @@ class App:
             segs.append(("\nItems to hand in  (the “+items”)\n", "h2"))
             for ri in r.required_items:
                 priced = "" if ri.priced else "   [no Jita price]"
-                segs.append(
-                    (f"  {ri.quantity:>4}x {ri.name}\n", None))
+                segs.append((f"  {ri.quantity:>4}x ", None))
+                segs.append((ri.name, None, ri.name))  # clickable -> copy
+                segs.append(("\n", None))
                 segs.append(
                     (f"         @ {n(ri.unit_cost)} = {n(ri.total_cost)} ISK{priced}\n",
                      None if ri.priced else "warn"))
@@ -416,7 +434,9 @@ class App:
                 segs.append(("  Total items you must buy:\n", "h2"))
                 for ri in r.required_items:
                     flag = "" if ri.priced else "   [no Jita price]"
-                    segs.append((f"   {ri.quantity * runs:>7,} x  {ri.name}\n", None))
+                    segs.append((f"   {ri.quantity * runs:>7,} x  ", None))
+                    segs.append((ri.name, None, ri.name))  # clickable -> copy
+                    segs.append(("\n", None))
                     segs.append((f"             = {n(ri.total_cost * runs)} ISK{flag}\n",
                                  None if ri.priced else "warn"))
                 segs.append((f"  Items total : {n(r.required_cost * runs)} ISK\n", "h2"))
@@ -435,11 +455,36 @@ class App:
         self._set_detail(segs)
 
     def _set_detail(self, segments) -> None:
+        """Render the detail pane. Each segment is (text, style_tag[, copy_value]);
+        when copy_value is given the text becomes a clickable copy-to-clipboard link."""
         self.detail.configure(state="normal")
         self.detail.delete("1.0", "end")
-        for text, tag in segments:
-            self.detail.insert("end", text, (tag,) if tag else ())
+        for t in self.detail.tag_names():       # clear last render's link tags
+            if t.startswith("copy-"):
+                self.detail.tag_delete(t)
+        link_i = 0
+        for seg in segments:
+            text = seg[0]
+            style = seg[1] if len(seg) > 1 else None
+            copy_value = seg[2] if len(seg) > 2 else None
+            tags = []
+            if style:
+                tags.append(style)
+            if copy_value is not None:
+                link_tag = f"copy-{link_i}"
+                link_i += 1
+                tags.extend(("copyable", link_tag))
+                self.detail.tag_bind(
+                    link_tag, "<Button-1>",
+                    lambda _e, val=copy_value: self._copy_text(val))
+            self.detail.insert("end", text, tuple(tags))
         self.detail.configure(state="disabled")
+
+    def _copy_text(self, value: str) -> None:
+        self.root.clipboard_clear()
+        self.root.clipboard_append(value)
+        self.root.update()  # keep the clipboard contents after focus changes
+        self._set_status(f"Copied: {value}")
 
     def _set_status(self, text: str) -> None:
         self.status_var.set(text)
